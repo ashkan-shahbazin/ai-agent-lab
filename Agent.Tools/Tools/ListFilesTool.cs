@@ -16,11 +16,23 @@ public sealed class ListFilesTool : IAgentTool
     }
 
     public ToolDefinition Definition =>
-        new("list_files", "Lists all files inside the project directory.");
+        new(
+            "list_files",
+            """
+            Lists files from a directory.
+
+            Input rules:
+            - Use "project_directory" when the user asks for all files in the entire project.
+            - Use a relative directory such as "Agent.Core" when the user asks for files inside a specific directory.
+            - Use an absolute path only when explicitly required.
+            """);
 
     public async Task<ToolResult> ExecuteAsync(string input, CancellationToken cancellationToken = default)
     {
-        var files = await _fileSystem.ListFilesAsync(_project.ProjectRoot, cancellationToken);
+        var path = input.Equals("project_directory", StringComparison.OrdinalIgnoreCase)
+            ? _project.ProjectRoot : Path.IsPathRooted(input) ? input : Path.Combine(_project.ProjectRoot, input);
+
+        var files = await _fileSystem.ListFilesAsync(path, cancellationToken);
 
         var result = string.Join(Environment.NewLine, files);
 

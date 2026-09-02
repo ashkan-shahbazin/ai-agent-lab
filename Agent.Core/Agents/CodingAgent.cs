@@ -50,6 +50,17 @@ public class CodingAgent
 
             var decision = _parser.Parse(response);
 
+            Console.WriteLine();
+            Console.WriteLine("===== RAW MODEL RESPONSE =====");
+            Console.WriteLine(response);
+            Console.WriteLine("==============================");
+
+            Console.WriteLine();
+            Console.WriteLine("===== PARSED DECISION =====");
+            Console.WriteLine($"Type: {decision.Type}");
+            Console.WriteLine($"ToolName: [{decision.ToolName}]");
+            Console.WriteLine($"ToolInput: [{decision.ToolInput}]");
+            Console.WriteLine("============================");
 
             if (decision.Type == AgentDecisionType.Answer)
             {
@@ -73,6 +84,14 @@ public class CodingAgent
 
                 var result = await tool.ExecuteAsync(
                     decision.ToolInput ?? string.Empty);
+
+                Console.WriteLine();
+                Console.WriteLine("===== TOOL EXECUTED =====");
+                Console.WriteLine($"Tool: {result.ToolName}");
+                Console.WriteLine("Result:");
+                Console.WriteLine(result.Result);
+                Console.WriteLine("=========================");
+                Console.WriteLine();
 
                 _context.Messages.Add(
                     new ChatMessage(

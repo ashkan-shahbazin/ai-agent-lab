@@ -14,6 +14,7 @@ services.AddSingleton<IChatModel, OllamaChatModel>();
 services.AddSingleton<IContextBuilder, ContextBuilder>();
 services.AddSingleton<IFileSystemTool, FileSystemTool>();
 services.AddSingleton<IAgentTool, ListFilesTool>();
+services.AddSingleton<IAgentTool, ReadFileTool>();
 services.AddSingleton<IToolRegistry, ToolRegistry>();
 services.AddSingleton<AgentDecisionParser>();
 
