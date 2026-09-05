@@ -15,6 +15,7 @@ services.AddSingleton<IContextBuilder, ContextBuilder>();
 services.AddSingleton<IFileSystemTool, FileSystemTool>();
 services.AddSingleton<IAgentTool, ListFilesTool>();
 services.AddSingleton<IAgentTool, ReadFileTool>();
+services.AddSingleton<IAgentTool, SearchFilesTool>();
 services.AddSingleton<IToolRegistry, ToolRegistry>();
 services.AddSingleton<AgentDecisionParser>();
 
@@ -86,6 +87,8 @@ foreach (var tool in registry.Tools)
     Console.WriteLine(
         $"{tool.Definition.Name} - {tool.Definition.Description}");
 }
+
+Console.WriteLine("============================");
 
 var testTool = registry.Get("list_files");
 

@@ -35,6 +35,10 @@ public class CodingAgent
 
     public async Task<string> AskAsync(string message)
     {
+        _context.Messages.Add(
+            new ChatMessage(
+                MessageRole.User,
+                message));
 
         for (var iteration = 0; iteration < 5; iteration++)
         {
@@ -45,8 +49,7 @@ public class CodingAgent
                 _context,
                 message);
 
-            var response =
-                await _chatModel.GetResponseAsync(prompt);
+            var response = await _chatModel.GetResponseAsync(prompt);
 
             var decision = _parser.Parse(response);
 

@@ -60,33 +60,57 @@ public class ContextBuilder : IContextBuilder
     You MUST use a tool when the user's request requires information
     from the project files or file system.
     
+    Before answering the user, determine whether the request requires
+    a tool.
     
-    ## Tool Selection Rules
+    ### Tool Selection Rules
     
-    Before answering the user, determine whether a tool is required.
+    1. Use `list_files` when the user asks to:
+       - list files
+       - show files in a directory
+       - show the project structure
+       - find files by directory
     
-    1. If the user mentions a specific file and asks to:
-       - open it
-       - read it
-       - inspect it
-       - explain it
-       - analyze it
+    2. Use `read_file` when the user asks to:
+       - open a specific file
+       - read a specific file
+       - inspect a specific file
+       - explain a specific file
+       - analyze a specific file
     
-       you MUST use `read_file`.
+    3. Use `search_files` when the user asks to:
+       - find where a class is used
+       - find where an interface is used
+       - find where a method is used
+       - find where a property is used
+       - find where a symbol is used
+       - find a specific piece of code
+       - find references to a class, interface, method, property, or symbol
     
-    2. If the user asks to list files or directories, use `list_files`.
+    4. Do NOT use `list_files` when the user has already identified
+       a specific file whose contents are required.
     
-    3. Do NOT use `list_files` when the user has already identified
-       a specific file whose contents are needed.
+    5. Do NOT use `read_file` when the user is asking where a symbol
+       is used across the project. Use `search_files` first.
     
-    4. Do NOT ask the user for a file path if the file name can be
-       resolved from the Project Context or the project structure.
+    6. Do NOT use `list_files` just to locate a file when the file path
+       can already be resolved from the Project Context.
     
-    5. When the user says "CodingAgent.cs", the correct path is:
+    7. When the user says "CodingAgent.cs", the correct path is:
     
        Agent.Core/Agents/CodingAgent.cs
     
-    ## Examples
+    8. When using `search_files`, the input MUST be the exact symbol
+       or text that the user wants to find.
+    
+    9. When using `read_file`, the input MUST be the resolved relative
+       file path.
+    
+    10. When using `list_files`, use:
+        - `project_directory` for the entire project
+        - the relative directory path for a specific directory
+    
+    ### Tool Selection Examples
     
     User: List all files in the project.
     
@@ -95,12 +119,14 @@ public class ContextBuilder : IContextBuilder
     name=list_files
     input=project_directory
     
+    
     User: Show me the files in Agent.Core.
     
     Response:
     TOOL_CALL
     name=list_files
     input=Agent.Core
+    
     
     User: Open CodingAgent.cs.
     
@@ -109,12 +135,14 @@ public class ContextBuilder : IContextBuilder
     name=read_file
     input=Agent.Core/Agents/CodingAgent.cs
     
+    
     User: Read CodingAgent.cs.
     
     Response:
     TOOL_CALL
     name=read_file
     input=Agent.Core/Agents/CodingAgent.cs
+    
     
     User: Explain how CodingAgent.cs works.
     
@@ -123,6 +151,7 @@ public class ContextBuilder : IContextBuilder
     name=read_file
     input=Agent.Core/Agents/CodingAgent.cs
     
+    
     User: Open CodingAgent.cs and explain how the agent loop works.
     
     Response:
@@ -130,29 +159,32 @@ public class ContextBuilder : IContextBuilder
     name=read_file
     input=Agent.Core/Agents/CodingAgent.cs
     
+    
     User: Find where ToolRegistry is used.
     
     Response:
     TOOL_CALL
     name=search_files
-    
-    ## Critical Rule
-    
-    If a specific file is mentioned and its contents are required to answer
-    the question, NEVER respond with FINAL before calling read_file.
+    input=ToolRegistry
     
     
-    Examples:
+    User: Find where IToolRegistry is used.
     
-    - "List all files in the project." -> MUST call list_files with input=project_directory
-    - "Show me the files in Agent.Core." -> MUST call list_files with input=Agent.Core
-    - "Open CodingAgent.cs." -> MUST call read_file with input=Agent.Core/Agents/CodingAgent.cs
-    - "Read CodingAgent.cs." -> MUST call read_file with input=Agent.Core/Agents/CodingAgent.cs
-    - "Explain how CodingAgent.cs works." -> MUST call read_file with input=Agent.Core/Agents/CodingAgent.cs
-    - "Find where ToolRegistry is used." -> MUST call search_files
+    Response:
+    TOOL_CALL
+    name=search_files
+    input=IToolRegistry
     
-    Do NOT answer from assumptions when the requested information
-    can be obtained by a tool.
+    
+    User: Find where AgentDecisionParser is used.
+    
+    Response:
+    TOOL_CALL
+    name=search_files
+    input=AgentDecisionParser
+    
+    
+    ### Tool Call Output Format
     
     If a tool is required, respond ONLY with:
     
@@ -160,24 +192,15 @@ public class ContextBuilder : IContextBuilder
     name=<tool name>
     input=<tool input>
     
-    After receiving a tool result, use that result to answer the user.
+    Do not add explanations, markdown, or additional text
+    when requesting a tool.
+    
+    ### Final Answer Format
     
     If no tool is required, respond ONLY with:
     
     FINAL
     answer=<your answer>
-    
-    Important rules:
-    
-    - Never claim that a tool returned information that it did not return.
-    - Do not invent, estimate, or infer file counts.
-    - When answering after a tool call, base the answer only on the tool result.
-    - If the tool result is limited to a directory, do not describe it as the entire project.
-    - If the requested scope and the tool result do not match, do not pretend they match.
-    
-    When a tool returns a list of files and the user asked to list files,
-    include the relevant file list in the final answer.
-    Do not merely say that the files were listed.
     """;
     }
 

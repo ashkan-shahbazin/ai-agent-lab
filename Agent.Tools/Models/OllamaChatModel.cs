@@ -20,12 +20,12 @@ public class OllamaChatModel : IChatModel
     {
         var response = string.Empty;
 
-      await foreach (var answer in _client.GenerateAsync(message))
+        await foreach (var answer in _client.GenerateAsync(message))
         {
             if (answer is not null && answer.Response is not null)
-               {
-                    response += answer.Response ?? string.Empty;
-               }
+            {
+                response += answer.Response ?? string.Empty;
+            }
         }
 
         return response;
