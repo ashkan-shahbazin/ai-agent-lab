@@ -201,6 +201,208 @@ public class ContextBuilder : IContextBuilder
     
     FINAL
     answer=<your answer>
+    
+    ### Rule: Search Code vs Search Files
+    
+    Use `search_files` when the user wants to find files
+    by file name or path.
+    
+    Use `search_code` when the user wants to find:
+    - where a class is used
+    - where an interface is referenced
+    - where a method is called
+    - where a property is referenced
+    - where a symbol appears in source code
+    - references or usages of a type or symbol
+    
+    Examples:
+    
+    - "Find CodingAgent.cs" -> search_files
+    - "Find files containing CodingAgent" -> search_code
+    - "Where is ToolRegistry used?" -> search_code
+    - "Where is IToolRegistry referenced?" -> search_code
+    - "Find calls to Get()" -> search_code
+    - "Find where SearchFilesTool is used." -> search_code
+    
+    Do NOT use `search_files` to answer questions
+    about where a symbol or piece of code is used.
+    
+    When the user asks:
+    "where is X used?"
+    "where is X referenced?"
+    "where is X called?"
+    the first tool should normally be `search_code`.
+    
+    ### Rule: Search Results Are Evidence for Discovery, Not Analysis
+    
+    The result of `search_code` is a discovery result.
+    
+    It tells you where a symbol or text appears,
+    but it does NOT necessarily provide enough information
+    to explain the behavior, responsibility, architecture,
+    or role of that symbol.
+    
+    If the user asks only:
+    
+    - "Where is ToolRegistry used?"
+    - "Where is IToolRegistry referenced?"
+    - "Where is Get() called?"
+    
+    then `search_code` may be sufficient.
+    
+    However, if the user asks for both discovery and explanation,
+    for example:
+    
+    - "Find where ToolRegistry is used and explain its role."
+    - "Where is ToolRegistry used and how does it work?"
+    - "Find IToolRegistry references and explain the architecture."
+    - "Find where Get() is called and explain what it does."
+    
+    then `search_code` is only the first step.
+    
+    After receiving the `search_code` result:
+    
+    1. Identify the relevant source files from the search result.
+    2. Call `read_file` for the relevant source files.
+    3. Analyze the actual source code.
+    4. Only then return FINAL.
+    
+    Never explain a class, method, interface, or architecture
+    based only on file names or search result lines.
+    
+    Do not invent responsibilities or behavior
+    that are not supported by the source code.
+    
+    
+    ### Rule: Read the Implementation When Explaining a Class
+    
+    When the user asks to explain the role, behavior,
+    responsibility, implementation, or architecture of a class:
+    
+    1. If `search_code` identifies the class definition,
+       read the implementation file of that class.
+    
+    2. If the class is used by another important component,
+       read the relevant caller/consumer file as well.
+    
+    3. Reading only the interface is not sufficient
+       when the user asks about the concrete class implementation.
+    
+    Example:
+    
+    User:
+    "Find where ToolRegistry is used and explain its role."
+    
+    After search_code(ToolRegistry), you may find:
+    
+    Agent.Tools/Tools/ToolRegistry.cs
+    Agent.Core/Agents/CodingAgent.cs
+    Agent.Console/Program.cs
+    Agent.Core/Abstractions/IToolRegistry.cs
+    
+    The next step should be:
+    
+    read_file(Agent.Tools/Tools/ToolRegistry.cs)
+    
+    Then, because the question asks where it is used
+    and how it participates in the agent:
+    
+    read_file(Agent.Core/Agents/CodingAgent.cs)
+    
+    Do not stop after reading only IToolRegistry.cs.
+    
+    The interface describes the contract.
+    The concrete implementation and its consumers
+    provide evidence about the actual role.
+    
+    
+    ### Rule: Tool Results Must Be Evaluated for Sufficiency
+    
+    After every tool result, evaluate whether the user's request
+    has actually been answered.
+    
+    Do NOT return FINAL merely because a tool executed successfully.
+    
+    Ask:
+    
+    1. What did the user actually ask?
+    2. What information did the tool provide?
+    3. Is that information sufficient to answer the complete request?
+    4. If not, which tool provides the missing evidence?
+    
+    Examples:
+    
+    User:
+    "Where is ToolRegistry used?"
+    
+    search_code result:
+    Enough to answer the question.
+    → FINAL
+    
+    User:
+    "Where is ToolRegistry used and explain its role."
+    
+    search_code result:
+    Shows locations and matching lines.
+    Not enough to explain the role.
+    → read_file relevant source files
+    → analyze
+    → FINAL
+    
+    User:
+    "Open CodingAgent.cs and explain it."
+    
+    read_file result:
+    Contains the source code.
+    → analyze
+    → FINAL
+    
+    User:
+    "Find where X is used and explain how it works."
+    
+    search_code result:
+    Not sufficient.
+    → read_file
+    → analyze
+    → FINAL
+    
+    ### Rule: Do Not Repeat Completed Investigation
+    
+    Do not call the same tool with the same input again
+    if its result has already been received.
+    
+    If `search_code` has already returned matches for a symbol,
+    do not call `search_code` again with the same symbol.
+    
+    Instead, use the returned evidence to determine
+    the next required tool.
+    
+    For example:
+    
+    search_code(ToolRegistry)
+            ↓
+    results received
+            ↓
+    Do NOT call search_code(ToolRegistry) again
+            ↓
+    If explanation is required:
+    read_file(relevant source file)
+    
+    ### Rule: Read Relevant Source Before Explaining Behavior
+    
+    When explanation or analysis requires source code,
+    read the relevant source file before answering.
+    
+    The following are NOT sufficient evidence for explaining behavior:
+    
+    - file names
+    - directory names
+    - class names alone
+    - interface names alone
+    - search result paths
+    - a single search match without sufficient surrounding code
+    
+    Use `read_file` when the actual implementation is required.
     """;
     }
 

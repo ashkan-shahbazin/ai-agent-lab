@@ -1,4 +1,5 @@
 using Agent.Core.Abstractions;
+using Agent.Core.Models;
 
 namespace Agent.Tools.FileSystem;
 
@@ -51,6 +52,27 @@ public sealed class FileSystemTool : IFileSystemTool
             cancellationToken);
     }
 
+    private static bool IsIgnoredDirectory(string file)
+    {
+        var directoryParts = file.Split(
+            Path.DirectorySeparatorChar,
+            Path.AltDirectorySeparatorChar);
+
+        return directoryParts.Any(part =>
+            IgnoredDirectories.Contains(
+                part,
+                StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static bool IsIgnoredExtension(string file)
+    {
+        var extension = Path.GetExtension(file);
+
+        return IgnoredExtensions.Contains(
+            extension,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
     public Task<string[]> SearchFilesAsync(
         string directory,
         string searchPattern,
@@ -72,24 +94,59 @@ public sealed class FileSystemTool : IFileSystemTool
         return Task.FromResult(files);
     }
 
-    private static bool IsIgnoredDirectory(string file)
+    public async Task<SearchMatch[]> SearchCodeAsync(string directory, string searchText, CancellationToken cancellationToken = default)
     {
-        var directoryParts = file.Split(
-            Path.DirectorySeparatorChar,
-            Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(directory))
+            return [];
 
-        return directoryParts.Any(part =>
-            IgnoredDirectories.Contains(
-                part,
-                StringComparer.OrdinalIgnoreCase));
-    }
+        if (string.IsNullOrWhiteSpace(searchText))
+            return [];
 
-    private static bool IsIgnoredExtension(string file)
-    {
-        var extension = Path.GetExtension(file);
+        var files = Directory
+            .EnumerateFiles(
+                directory,
+                "*",
+                SearchOption.AllDirectories)
+            .Where(file =>
+                !IsIgnoredDirectory(file) &&
+                !IsIgnoredExtension(file));
 
-        return IgnoredExtensions.Contains(
-            extension,
-            StringComparer.OrdinalIgnoreCase);
+        var matches = new List<SearchMatch>();
+
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string[] lines;
+
+            try
+            {
+                lines = await File.ReadAllLinesAsync(
+                    file,
+                    cancellationToken);
+            }
+            catch
+            {
+                continue;
+            }
+
+            for (var i = 0; i < lines.Length; i++)
+            {
+                if (!lines[i].Contains(
+                        searchText,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                matches.Add(
+                    new SearchMatch(
+                        file,
+                        i + 1,
+                        lines[i].Trim()));
+            }
+        }
+
+        return matches.ToArray();
     }
 }

@@ -1,8 +1,10 @@
 ﻿using Agent.Core.Abstractions;
 using Agent.Core.Agents;
 using Agent.Core.Context;
+using Agent.Core.Investigation;
 using Agent.Core.Parsing;
 using Agent.Core.Tools;
+using Agent.Core.Validation;
 using Agent.Tools.FileSystem;
 using Agent.Tools.Models;
 using Agent.Tools.Tools;
@@ -17,14 +19,17 @@ services.AddSingleton<IAgentTool, ListFilesTool>();
 services.AddSingleton<IAgentTool, ReadFileTool>();
 services.AddSingleton<IAgentTool, SearchFilesTool>();
 services.AddSingleton<IToolRegistry, ToolRegistry>();
+services.AddSingleton<IAgentTool, SearchCodeTool>();
+services.AddSingleton<IDecisionValidator, DecisionValidator>();
 services.AddSingleton<AgentDecisionParser>();
+services.AddSingleton<InvestigationTracker>();
 
 services.AddSingleton<ProjectContext>(
     _ => new ProjectContext
     {
         ProjectName = "DotNet Agent Lab",
 
-        ProjectRoot = @"C:\DotNetAgentLab",
+        ProjectRoot = @"D:\Local\ai-agent-lab",
 
         Description =
             "An experimental Coding Agent built with C# and .NET.",

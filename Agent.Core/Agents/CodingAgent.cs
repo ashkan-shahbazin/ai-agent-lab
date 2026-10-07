@@ -1,5 +1,6 @@
 using Agent.Core.Abstractions;
 using Agent.Core.Context;
+using Agent.Core.Investigation;
 using Agent.Core.Models;
 using Agent.Core.Parsing;
 
@@ -11,20 +12,19 @@ public class CodingAgent
     private readonly AgentContext _context;
     private readonly IContextBuilder _contextBuilder;
     private readonly IToolRegistry _toolRegistry;
+    private readonly IDecisionValidator _decisionValidator;
     private readonly AgentDecisionParser _parser;
+    private readonly InvestigationTracker _investigationTracker;
 
-    public CodingAgent(
-        IChatModel chatModel,
-        AgentContext context,
-        IContextBuilder contextBuilder,
-        IToolRegistry toolRegistry,
-    AgentDecisionParser parser)
+    public CodingAgent(IChatModel chatModel, AgentContext context, IContextBuilder contextBuilder, IToolRegistry toolRegistry, IDecisionValidator decisionValidator, AgentDecisionParser parser, InvestigationTracker investigationTracker)
     {
         _chatModel = chatModel;
         _context = context;
         _contextBuilder = contextBuilder;
         _toolRegistry = toolRegistry;
+        _decisionValidator = decisionValidator;
         _parser = parser;
+        _investigationTracker = investigationTracker;
 
         foreach (var tool in _toolRegistry.Tools)
         {
@@ -65,8 +65,45 @@ public class CodingAgent
             Console.WriteLine($"ToolInput: [{decision.ToolInput}]");
             Console.WriteLine("============================");
 
+            Console.WriteLine();
+            Console.WriteLine("===== TOOL EXECUTION HISTORY =====");
+
+            foreach (var execution in _context.ToolExecutions)
+            {
+                Console.WriteLine(
+                    $"Tool: {execution.ToolName} | Input: {execution.Input}");
+            }
+
+            Console.WriteLine("==================================");
+
             if (decision.Type == AgentDecisionType.Answer)
             {
+                var validation = _decisionValidator.Validate(decision, _context);
+
+                Console.WriteLine();
+                Console.WriteLine("===== DECISION VALIDATION =====");
+                Console.WriteLine($"Valid: {validation.IsValid}");
+                Console.WriteLine($"Reason: {validation.Reason}");
+                Console.WriteLine("===============================");
+
+                if (!validation.IsValid)
+                {
+                    _context.Messages.Add(
+                        new ChatMessage(
+                            MessageRole.System,
+                            $"""
+                             The proposed final answer was rejected.
+
+                             Reason:
+                             {validation.Reason}
+
+                             Continue investigating the user's request.
+                             Do not return FINAL yet.
+                             """));
+
+                    continue;
+                }
+
                 _context.Messages.Add(
                     new ChatMessage(
                         MessageRole.Assistant,
@@ -85,8 +122,13 @@ public class CodingAgent
                     return $"Tool not found: {decision.ToolName}";
                 }
 
-                var result = await tool.ExecuteAsync(
-                    decision.ToolInput ?? string.Empty);
+                var result = await tool.ExecuteAsync(decision.ToolInput ?? string.Empty);
+
+                var toolExecution = new ToolExecution(result.ToolName, decision.ToolInput ?? string.Empty, result.Result);
+                
+                _context.ToolExecutions.Add(toolExecution);
+
+                _investigationTracker.Record(_context, toolExecution);
 
                 Console.WriteLine();
                 Console.WriteLine("===== TOOL EXECUTED =====");
@@ -95,6 +137,7 @@ public class CodingAgent
                 Console.WriteLine(result.Result);
                 Console.WriteLine("=========================");
                 Console.WriteLine();
+
 
                 _context.Messages.Add(
                     new ChatMessage(
