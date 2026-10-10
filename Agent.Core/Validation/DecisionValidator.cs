@@ -6,69 +6,62 @@ namespace Agent.Core.Validation;
 
 public sealed class DecisionValidator : IDecisionValidator
 {
-    public DecisionValidationResult Validate(AgentDecision decision, AgentContext context)
+    public DecisionValidationResult Validate(
+        AgentDecision decision,
+        AgentContext context)
     {
         if (decision.Type != AgentDecisionType.Answer)
         {
             return new DecisionValidationResult(true);
         }
 
-        var userRequest = context.Messages.FirstOrDefault(x => x.Role == MessageRole.User)?.Content;
+        var hasCodeSearch = context.Evidence.Any(
+            x => x.Type.Equals(
+                "CodeSearch",
+                StringComparison.OrdinalIgnoreCase));
 
-        if (string.IsNullOrWhiteSpace(userRequest))
-        {
-            return new DecisionValidationResult(true);
-        }
+        var hasImplementation = context.Evidence.Any(
+            x => x.Type.Equals(
+                "Implementation",
+                StringComparison.OrdinalIgnoreCase));
 
-        var requiresExplanation =
-            userRequest.Contains("explain", StringComparison.OrdinalIgnoreCase) ||
-            userRequest.Contains("role", StringComparison.OrdinalIgnoreCase) ||
-            userRequest.Contains("how does", StringComparison.OrdinalIgnoreCase);
+        var hasConsumer = context.Evidence.Any(
+            x => x.Type.Equals(
+                "Consumer",
+                StringComparison.OrdinalIgnoreCase));
 
-        if (!requiresExplanation)
-        {
-            return new DecisionValidationResult(true);
-        }
-
-        var hasCodeSearch = context.ToolExecutions.Any(x => x.ToolName.Equals("search_code", StringComparison.OrdinalIgnoreCase));
-
-        var hasImplementationRead = context.ToolExecutions.Any(
-            x =>
-                x.ToolName.Equals(
-                    "read_file",
-                    StringComparison.OrdinalIgnoreCase)
-                &&
-                x.Input.Contains(
-                    "ToolRegistry.cs",
-                    StringComparison.OrdinalIgnoreCase));
-
-        var hasConsumerRead = context.ToolExecutions.Any(
-            x =>
-                x.ToolName.Equals(
-                    "read_file",
-                    StringComparison.OrdinalIgnoreCase)
-                &&
-                !x.Input.Contains(
-                    "ToolRegistry.cs",
-                    StringComparison.OrdinalIgnoreCase));
-
-        if (hasCodeSearch &&
-            hasImplementationRead &&
-            !hasConsumerRead)
+        if (!hasCodeSearch)
         {
             return new DecisionValidationResult(
                 false,
                 """
-                The request requires explaining the role of the component.
+                The agent has not searched the codebase for the requested component.
 
-                The agent has:
-                - searched for the component
-                - read its implementation
+                Perform a code search before producing a final answer.
+                """);
+        }
 
-                But it has not yet read a consumer of the component.
+        if (!hasImplementation)
+        {
+            return new DecisionValidationResult(
+                false,
+                """
+                The agent found references to the requested component,
+                but has not read its implementation.
 
-                Continue the investigation by reading a relevant consumer,
-                such as CodingAgent.cs.
+                Read the implementation before producing a final answer.
+                """);
+        }
+
+        if (!hasConsumer)
+        {
+            return new DecisionValidationResult(
+                false,
+                """
+                The agent has read the implementation,
+                but has not investigated how the component is used.
+
+                Read at least one relevant consumer before producing a final answer.
                 """);
         }
 

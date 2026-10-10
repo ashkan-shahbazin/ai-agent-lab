@@ -40,7 +40,9 @@ public class CodingAgent
                 MessageRole.User,
                 message));
 
-        for (var iteration = 0; iteration < 5; iteration++)
+        const int maxIterations = 8;
+
+        for (var iteration = 0; iteration < maxIterations; iteration++)
         {
             Console.WriteLine(
                 $"\n========== AGENT ITERATION {iteration + 1} ==========\n");
@@ -125,10 +127,21 @@ public class CodingAgent
                 var result = await tool.ExecuteAsync(decision.ToolInput ?? string.Empty);
 
                 var toolExecution = new ToolExecution(result.ToolName, decision.ToolInput ?? string.Empty, result.Result);
-                
+
                 _context.ToolExecutions.Add(toolExecution);
 
                 _investigationTracker.Record(_context, toolExecution);
+
+                Console.WriteLine();
+                Console.WriteLine("===== INVESTIGATION EVIDENCE =====");
+
+                foreach (var evidence in _context.Evidence)
+                {
+                    Console.WriteLine(
+                        $"Type: {evidence.Type} | Source: {evidence.Source} | Details: {evidence.Details}");
+                }
+
+                Console.WriteLine("==================================");
 
                 Console.WriteLine();
                 Console.WriteLine("===== TOOL EXECUTED =====");
